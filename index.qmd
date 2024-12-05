@@ -50,7 +50,6 @@ Broadcasts (like apply/lapply) :
 ```{julia}
 V .* 2
 ```
-{{< pagebreak >}}
 
 ## Functions
 
@@ -103,8 +102,6 @@ This is important for performance, but needs some getting used to.
 
 [Julia Geocompx book](https://jl.geocompx.org/)
 
-Notice that this is different to the first example:
-
 ## Common interface packages:
 
 - GeoInterface.jl: makes common interface for geospatial objects, all the other packages build on it.
@@ -119,23 +116,32 @@ Notice that this is different to the first example:
 
 # [GeoDataFrames.jl](https://github.com/evetion/GeoDataFrames.jl)
 
-Load vector datasets as a DataFrames.jl dataframe.
+Load vector datasets as a DataFrames.jl dataframe, using gdal and/or
+native julia file loaders.
 
 ---
 
-There is also:
-- LibGEOS.jl for geos 
-- ArchGDAL.jl for gdal
+## There are also wrappers for common GIS libraries:
 
-And native packages:
+- LibGEOS.jl for geos 
+- GDAL.jl and ArchGDAL.jl for gdal
+- Proj.jl for proj projections
+- etc.
+
+## And native julia IO packages
+
 - Shapefile.jl
 - GeoJSON.jl
 - GeoParquet.jl
-etc...
+- etc...
+
+These are often faster and more memory efficient than GDAL
 
 # [Rasters.jl](https://github.com/rafaqz/Rasters.jl)
 
-Multidimensional raster data and operations. Somewhere between Rs `stars` and pythons `XArray`
+Multidimensional raster data and operations. 
+
+Somewhere between Rs `raster` and pythons `XArray`
 
 ```{julia}
 #| echo: false
@@ -144,44 +150,24 @@ if !haskey(ENV, "RASTERDATASOURCES_PATH")
 end
 ```
 
-
-## File Read/Write Backends
-
-File types                      | Package
-------------------------------- | ----------
-GeoTIFF and everything else     | ArchGDAL.jl
-Netcdf/hdf5                     | NCDatasets.jl
-Grib (read only)                | GRIBDatasets.jl
-Zarr (read only)                | ZarrDatasets.jl
-R grd (simple Mmap data from R) | native
-
-
-## Backend detection
-
-Backend detected in constructors:
-
-```julia
-# Single array
-rast = Raster("myraster.tif")
-rast = Raster("myraster.nc")
-
-# Multi-layered stacks
-st = RasterStack("mystack.nc")
-st = RasterStack("mystack.grib")
-```
-
-# Load a file
-
-Lazily 
+## Load a file
 
 ```{julia}
 using Rasters, RasterDataSources, ArchGDAL, Dates
-filename = getraster(WorldClim{Future{BioClim,CMIP6,MRI_ESM2_0,SSP126}}, 5; date=Date(2050), res = "10m")
+filename = getraster(WorldClim{Future{BioClim,CMIP6,MRI_ESM2_0,SSP126}}, 5; 
+    date=Date(2050), res = "10m"
+)
 rast = Raster(filename; lazy=true)
 ```
 ---
 
-Still lazy after broadcasts:
+A Raster follows julias array interface:
+
+```{julia}
+rast isa AbstractArray
+```
+So array operations work on Rasters, even when this one is lazy.
+
 ```{julia}
 rast10 = rast .* 10
 rast10
@@ -194,20 +180,9 @@ Reads from disk/network on `getindex`:
 rast10[X=100 .. 135, Y=20 .. 40, Band=1]
 ```
 
-## RasterDataSources.jl integration
-
-\
-Load a raster from RasterDataSources.jl directly:
-
-```{julia}
-bioclim5 = Raster(WorldClim{BioClim}, 5)
-```
-
 # Plotting
 
 ## Makie.jl
-
-Standard plotting
 
 ```{julia}
 #| echo: false
@@ -217,20 +192,16 @@ CairoMakie.activate!(type = "png")
 
 ```{julia}
 using CairoMakie
+bioclim5 = Raster(WorldClim{BioClim}, 5)
 Makie.plot(bioclim5)
 ```
 
 ## GeoMakie.jl
 
-Projected plotting
-
 ```{julia}
 using GeoMakie, NaturalEarth, DataFrames
-countries = naturalearth("ne_10m_admin_0_countries") |> DataFrame
-norway = subset(countries, :NAME => ByRow(==("Norway"))).geometry
 fig = Figure();
 ga = GeoAxis(fig[1, 1]; dest="+proj=ortho +lon_0=19 +lat_0=72")
 Makie.heatmap!(ga, bioclim5; colormap=:magma)
-Makie.plot!(ga, norway; color=:black, strokewidth=1)
 fig
 ```
