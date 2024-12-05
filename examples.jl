@@ -1,23 +1,32 @@
+nothing
 
-# Makie and Tyler.jl
+# Makie and Tyler.jl example
+using Tyler # Tiled plotting in Makie.jl
+using GLMakie # Open gl plotting backend
+using Extents # Shared Extent object
+using NaturalEarth # Courntry borders
+using Rasters # Raster data
+using RasterDataSources # Climate data
+using ArchGDAL # GDAL bindings
+using DataFrames # DataFrames
+using Dates # Date and time handling
+using StatsBase
+import Proj # Projections
+import GeometryOps as GO # Spatial operations
+import GeoInterface as GI # Common interface for geospatial objects
+ENV["RASTERDATASOURCES_PATH"] = "."; # Just for CI
 
-using Tyler, GLMakie, Extents, NaturalEarth
-using Rasters, RasterDataSources, ArchGDAL
-using DataFrames
-using ImageIO
-import Proj
-import GeometryOps as GO
-import GeoInterface as GI
-GLMakie.activate!()
-ENV["RASTERDATASOURCES_PATH"] = ".";
-
+# Get Norway country borders
 countries = naturalearth("ne_10m_admin_0_countries") |> DataFrame
 norway = subset(countries, :NAME => ByRow(==("Norway"))).geometry[1]
-norway_webmercator = GO.resample(norway; target_crs=EPSG(3857))
+norway_webmercator = GO.reproject(norway; target_crs=EPSG(3857))
 
-# Get december mean temperatures
-tmax_dec = mask(Raster(WorldClim{Climate}, :tmax; month=December, replace_missing=true); with=norway)
-# Mask tmax with Norway
+# Get december mean temperatures 
+tmax_dec = Raster(WorldClim{Climate}, :tmax; month=December, replace_missing=true)
+
+# Mask with Norway
+tmax_dec_masked = mask(tmax_dec; with=norway, boundary=:touches)
+
 # Project to web mercator, which is what most web tiles use
 tmax_webmercator = Rasters.reproject(Rasters.shiftlocus(Rasters.Center(), tmax_dec_masked); crs=EPSG(3857))
 
@@ -32,84 +41,88 @@ Makie.translate!(pt, 0, 0, 10)
 p = Makie.plot!(tyler.axis, norway_webmercator; color=:transparent, strokewidth=2)
 Makie.translate!(p, 0, 0, 20)
 
-# Examples
 
-using Rasters
-using ArchGDAL
-using Dates
-using DataFrames
-using GBIF2
-using RasterDataSources
-using Plots
-using Rasters: trim
+# SDM Example
 
+using Rasters, RasterDataSources, ArchGDAL, NaturalEarth, DataFrames
+bio = RasterStack(WorldClim{BioClim}, (1,12))
+countries = naturalearth("ne_10m_admin_0_countries") |> DataFrame
+australia = subset(countries, :NAME => ByRow(==("Australia"))).geometry
+bio_aus = Rasters.trim(mask(bio; with = australia)[X = 110 .. 156, Y = -45 .. -10])
 
-## `extract`: species distribution modelling
+# Let's plot this data to see what it looks like.
+using CairoMakie
+CairoMakie.activate!()
+Rasters.rplot(bio_aus)
 
-# Extract climate data at specific points:
+## Occurrence data
+# Next, we use [GBIF2.jl](www.github.com/rafaqz/GBIF2.jl) to download occurrence records for this species. We use the [thin](@ref) function in this package to weed out occurrences that are very close to each other, using a cut-off of 5km.
+using GBIF2, SpeciesDistributionModels
+sp = species_match("Eucalyptus regnans")
+occurrences_raw = occurrence_search(sp; year = (1970,2000), country = "AU", hasCoordinate = true, limit = 2000)
+occurrences = thin(occurrences_raw.geometry, 5000)
 
-using SpeciesDistributionModels, Rasters, RasterDataSources, GBIF2, LibGEOS, ArchGDAL, StatsBase
-import GeometryOps as GO
+## Background points
+# Next, we sample random points to use as background points.
+
+# Let's plot both the occurrence and background points to see where _Eucalyptus regnans_ is found.
+
+using StatsBase
+bg_indices = sample(findall(boolmask(bio_aus)), 500)
+bg_points = DimPoints(bio_aus)[bg_indices]
+fig, ax, pl = Makie.plot(bio_aus.bio1)
+Makie.scatter!(ax, occurrences; color = :red)
+Makie.scatter!(ax, bg_points; color = :grey)
+fig
+
+## Handling data
+# SpeciesDistributionModels.jl has a [sdmdata](@ref) function to handle input data. It takes tabular presence and background data as inputs, such as what is returned by `Rasters.extract` and `Rasters.sample`.
+
+using SpeciesDistributionModels
+p_data = extract(bio_aus, occurrences; skipmissing = true)
+bg_data = bio_aus[bg_indices]
+data = sdmdata(p_data, bg_data; resampler = CV(nfolds = 3))
+
+## Fitting an ensemble
+# Now that we have our `data` object with presence and background data, we can fit our ensemble. The `sdm` function fits a whole ensemble, taking two arguments: a data object and a `NamedTuple` with models the ensemble should have. This can be any MLJ-compatible model. In this case, we use Maxnet, boosted regression trees (from the EvoTrees.jl package), and a GLM.
+
+using Maxnet: MaxnetBinaryClassifier
+using EvoTrees: EvoTreeClassifier
+using MLJGLMInterface: LinearBinaryClassifier
+models = (
+  maxnet = MaxnetBinaryClassifier(),
+  brt = EvoTreeClassifier(),
+  glm = LinearBinaryClassifier()
+)
+
+ensemble = sdm(data, models)
+
+## Evaluating an ensemble
+# We can evaluate the entire ensemble using any metric from [StatisticalMeasures.jl](https://github.com/JuliaAI/StatisticalMeasures.jl).
+
 import SpeciesDistributionModels as SDM
+ev = SDM.evaluate(ensemble; measures = (; auc, accuracy))
 
-# We start by extracting occurrence records from GBIF using GBIF2.
+## Predicting
+# Next, we the climatic suitability of the species throughout Australia using `SpeciesDistributionModels.predict`. We can specify a `reducer` argument to get a single value, instead of a prediction for each member in the ensemble.
 
-# extract occurrence records for Anopheles rufipes
-nili = species_match("Anopheles nili")
-occurrences = occurrence_search(nili, hasCoordinate = true, year = (1990, 2020), limit = 1000)
-presence_points = unique(occurrences.geometry)
+pred = SDM.predict(ensemble, bio_aus; reducer = mean)
+Makie.plot(pred; colorrange = (0,1))
 
-# The region of interest will be defined by a convex hull around our presence points, buffered by 5 degrees.
+## Understanding the model
+# SDM.explain) offers tools to estimate the contribution and response curves for each variable. Currently, the only implemented method is Shapley values from the [Shapley.jl](www.gitlab.com/ExpandingMan/Shapley.jl) package.
 
-roi = GO.buffer(GO.convex_hull(presence_points), 5)
+expl = SDM.explain(ensemble; method = ShapleyValues(8))
+variable_importance(expl)
 
-# Now we'll load bioclimatic variables from WorldClim, using RasterDataSources and Rasters.
 
-# load bioclimatic variables
-bio = crop(RasterStack(WorldClim{BioClim}); to = roi)
+# We can also interactively plot the model explanation to get response curves.
+using GLMakie
+GLMakie.activate!()
+interactive_response_curves(expl)
 
-# The extract function from Rasters makes it easy to extract the variables at our presence points.
 
-# get values at presence points
-presences = extract(bio, presence_points; skipmissing = true, geometry = false)
 
-# For background (pseudo-absence) points, we draw 300 points uniformly distributed within the region of interest.
-
-# get a raster with dimensions of bio that is true for all cells within roi and where bio is not missing
-roi_raster = rasterize(roi; to = bio, fill = true, missingval = false) .* Rasters.boolmask(bio)
-# draw random cells in the region of interest
-background_points = sample(DimIndices(roi_raster), weights(roi_raster), 300)
-# get bioclimatic variables at the background locations
-background = map(p -> bio[p...], background_points)
-
-# Let's choose some settings for modelling. Here we're using 4 different models, resample using 3-fold stratified cross-validation, and use 3 predictor variables.
-
-# choose models, a resampler, and predictor variables
-models = [SDM.linear_model(), SDM.random_forest(), SDM.random_forest(; max_depth = 3), SDM.boosted_regression_tree()]
-resampler = StratifiedCV(; nfolds = 3)
-predictors = (:bio1, :bio7, :bio12)
-
-# Now we're ready to run the models. We construct an ensemble using the sdm function.
-
-# run models and construct ensemble
-ensemble = sdm(presences, background; models, resampler, predictors)
-
-# When an ensemble is printed it shows some basic information.
-
-SDMensemble with 12 machines across 4 groups
-Occurence data: Presence-Absence with 27 presences and 300 absences 
-Predictors: bio1 (Continuous), bio7 (Continuous), bio12 (Continuous)
-
-# To see how our models performed, use the evaluate function. Here we use it with default settings.
-
-evaluation = SDM.evaluate(ensemble)
-
-# SDMensembleEvaluation with 4 performance measures
-# train
-
-# Finally, we predict back to a raster, taking the simple mean of all models to generate a final prediction.
-
-pr = SDM.predict(ensemble, bio; reducer = mean)
 
 
 ## `zonal` statistics: find the hottest countries

@@ -83,26 +83,27 @@ add([1, 2, 3], [4, 5, 6])
 
 # Types
 
-Julia doesn't hide types from you how R does.
-
-Notice that this is different to the first example:
+Julia doesn't hide number types from you how R does:
 
 ```{julia}
 x = 1.0
-x * 2
+typeof(x * 2)
 ```
-
-Its a floating point number `Float64`. 
 
 ```{julia}
 x = 1
-x * 2
+typeof(x * 2)
 ```
+
+This is important for performance, but needs some getting used to.
 
 # GIS
 
 [JuliaGeo](https://github.com/JuliaGeo)
 
+[Julia Geocompx book](https://jl.geocompx.org/)
+
+Notice that this is different to the first example:
 
 ## Common interface packages:
 
