@@ -4,7 +4,6 @@ subtitle: "Why Julia for geospatial work?"
 author:
   - name: Rafael Schouten
     orcid:
-    email: rafaelschouten@gmail.com
     affiliation:
       - name: NINA
 date: "04-12-2024"
@@ -13,7 +12,7 @@ format:
   revealjs:
     theme: [simple, style.scss] # beige blood dark default league moon night serif simple sky solarized
     incremental: true
-    toc: true
+    toc: false
     toc-depth: 1
     slide-number: true
     overview: true
@@ -82,7 +81,7 @@ add([1, 2, 3], [4, 5, 6])
 
 # Types
 
-Julia doesn't hide number types from you how R does:
+Julia doesn't hide number types from you:
 
 ```{julia}
 x = 1.0
@@ -93,8 +92,6 @@ typeof(x * 2)
 x = 1
 typeof(x * 2)
 ```
-
-This is important for performance, but needs some getting used to.
 
 # GIS
 
