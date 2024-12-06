@@ -34,7 +34,7 @@ tmax_webmercator = Rasters.reproject(Rasters.shiftlocus(Rasters.Center(), tmax_d
 tyler = Tyler.Map(GI.extent(norway); provider=Tyler.TileProviders.Google())
 
 # Add a temperature layer
-pt = Makie.plot!(tyler.axis, tmax_webmercator; alpha=0.7, colormap=:seaborn_icefire_gradient)
+pt = Makie.plot!(tyler.axis, tmax_webmercator; alpha=0.9, colormap=:seaborn_icefire_gradient)
 Makie.translate!(pt, 0, 0, 10)
 
 # Add norway borders
@@ -47,6 +47,8 @@ Makie.translate!(p, 0, 0, 20)
 using Rasters, RasterDataSources, ArchGDAL, NaturalEarth, DataFrames
 bio = RasterStack(WorldClim{BioClim}, (1,12))
 countries = naturalearth("ne_10m_admin_0_countries") |> DataFrame
+
+# Subset australia from the data
 australia = subset(countries, :NAME => ByRow(==("Australia"))).geometry
 bio_aus = Rasters.trim(mask(bio; with = australia)[X = 110 .. 156, Y = -45 .. -10])
 
@@ -90,33 +92,29 @@ using Maxnet: MaxnetBinaryClassifier
 using EvoTrees: EvoTreeClassifier
 using MLJGLMInterface: LinearBinaryClassifier
 models = (
-  maxnet = MaxnetBinaryClassifier(),
-  brt = EvoTreeClassifier(),
-  glm = LinearBinaryClassifier()
+    maxnet = MaxnetBinaryClassifier(),
+    brt = EvoTreeClassifier(),
+    glm = LinearBinaryClassifier()
 )
 
 ensemble = sdm(data, models)
 
 ## Evaluating an ensemble
-# We can evaluate the entire ensemble using any metric from [StatisticalMeasures.jl](https://github.com/JuliaAI/StatisticalMeasures.jl).
-
 import SpeciesDistributionModels as SDM
 ev = SDM.evaluate(ensemble; measures = (; auc, accuracy))
 
-## Predicting
-# Next, we the climatic suitability of the species throughout Australia using `SpeciesDistributionModels.predict`. We can specify a `reducer` argument to get a single value, instead of a prediction for each member in the ensemble.
 
+## Predicting
 pred = SDM.predict(ensemble, bio_aus; reducer = mean)
-Makie.plot(pred; colorrange = (0,1))
+Makie.plot(pred; colorrange = (0, 1))
+
 
 ## Understanding the model
-# SDM.explain) offers tools to estimate the contribution and response curves for each variable. Currently, the only implemented method is Shapley values from the [Shapley.jl](www.gitlab.com/ExpandingMan/Shapley.jl) package.
-
 expl = SDM.explain(ensemble; method = ShapleyValues(8))
 variable_importance(expl)
 
 
-# We can also interactively plot the model explanation to get response curves.
+# Interactively plot the model explanation
 using GLMakie
 GLMakie.activate!()
 interactive_response_curves(expl)

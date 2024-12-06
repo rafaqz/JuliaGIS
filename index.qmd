@@ -26,10 +26,16 @@ execute:
 
 - A relatively new language for scientific computing
 - Designed for math and science, and performance
-- Most developed for modelling and differential equations
 
 ![](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSxkyFOO9EDHT_JRIVtk8DzF7ik0cx--MCtjA&s)
 
+# How is Julia both dynamic fast?
+
+- Compiled with LLVM like Rust and some C
+- So it can be as fast or faster than C
+- But it can compile more code at run-time, as you use it
+- So it "feels" interpreted, like R and Python
+- The language was designed to make this possible
 
 # Some syntax 
 
@@ -93,7 +99,15 @@ x = 1
 typeof(x * 2)
 ```
 
-# GIS
+# Why not to use Julia?
+
+- Its young
+- Much smaller user-base
+- There are not a million answered questions on the internet already
+- You will need to ask questions on discourse and github yourself!
+- But you can normally just talk to developers directly
+
+# Julia for GIS
 
 [JuliaGeo](https://github.com/JuliaGeo)
 
@@ -101,20 +115,37 @@ typeof(x * 2)
 
 ## Common interface packages:
 
-- GeoInterface.jl: makes common interface for geospatial objects, all the other packages build on it.
-- DiskArrays.jl: lazy loading and out-of-core operations on large raster data. All raster packages use it.
-- CommonDataModel.jl: CF standards for loading NetCDF, Zarr and Grib files.
+- GeoInterface.jl: common interface for geospatial objects
+- DiskArrays.jl: lazy loading and out-of-core operations on large raster data
+- CommonDataModel.jl: CF standards for loading NetCDF, Zarr and Grib files
+- Tables.jl: unites all tablular/dataframe data
 
 # [GeometryOps.jl](https://github.com/JuliaGeo/GeometryOps.jl)
 
-(quite new) spatial operations on GeoInterface.jl compatible vector/geometry data
+- spatial operations on any GeoInterface.jl compatible geometry data
+- very new!!
 
-![GeometryOps performance](https://github.com/JuliaGeo/GeometryOps.jl/assets/32143268/0be8672c-c90f-4e1d-81c5-8522317c5e29)
+--- 
+
+# Example op: `simplify`
+```{julia}
+import GeometryOps as GO, GeoInterface as GI
+using NaturalEarth, CairoMakie, DataFrames
+countries = naturalearth("ne_10m_admin_0_countries") |> DataFrame
+simplified = GO.simplify(countries; ratio=0.01)
+australia = subset(simplified, :NAME => ByRow(==("Australia")))
+p = Makie.plot(australia.geometry; axis=(; aspect=DataAspect()))
+```
 
 # [GeoDataFrames.jl](https://github.com/evetion/GeoDataFrames.jl)
 
 Load vector datasets as a DataFrames.jl dataframe, using gdal and/or
 native julia file loaders.
+
+```julia
+import GeoDataFrames as GDF
+df = GDF.read("my_shapefile.shp")
+```
 
 ---
 
@@ -132,8 +163,6 @@ native julia file loaders.
 - GeoParquet.jl
 - etc...
 
-These are often faster and more memory efficient than GDAL
-
 # [Rasters.jl](https://github.com/rafaqz/Rasters.jl)
 
 Multidimensional raster data and operations. 
@@ -145,6 +174,7 @@ Somewhere between Rs `raster` and pythons `XArray`
 if !haskey(ENV, "RASTERDATASOURCES_PATH")
     ENV["RASTERDATASOURCES_PATH"] = ".";
 end
+nothing
 ```
 
 ## Load a file
@@ -163,7 +193,7 @@ A Raster follows julias array interface:
 ```{julia}
 rast isa AbstractArray
 ```
-So array operations work on Rasters, even when this one is lazy.
+So most array operations work on rasters
 
 ```{julia}
 rast10 = rast .* 10
@@ -196,7 +226,7 @@ Makie.plot(bioclim5)
 ## GeoMakie.jl
 
 ```{julia}
-using GeoMakie, NaturalEarth, DataFrames
+using GeoMakie, DataFrames
 fig = Figure();
 ga = GeoAxis(fig[1, 1]; dest="+proj=ortho +lon_0=19 +lat_0=72")
 Makie.heatmap!(ga, bioclim5; colormap=:magma)
