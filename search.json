@@ -1,0 +1,58 @@
+[
+  {
+    "objectID": "index.html#vectors-and-arrays-lists",
+    "href": "index.html#vectors-and-arrays-lists",
+    "title": "Julia for GIS",
+    "section": "Vectors and Arrays (lists)",
+    "text": "Vectors and Arrays (lists)\n\nV = [10, 20, 30, 40, 50]\nV[5]\n\n50\n\n\nBroadcasts (like apply/lapply) :\n\nV .* 2\n\n5-element Vector{Int64}:\n  20\n  40\n  60\n  80\n 100"
+  },
+  {
+    "objectID": "index.html#functions",
+    "href": "index.html#functions",
+    "title": "Julia for GIS",
+    "section": "Functions",
+    "text": "Functions\n\nf(x) = 2x\nf(4)\n\n8\n\n\nBroadcast functions over arrays:\n\nf.([1, 2, 3])\n\n3-element Vector{Int64}:\n 2\n 4\n 6"
+  },
+  {
+    "objectID": "index.html#common-interface-packages",
+    "href": "index.html#common-interface-packages",
+    "title": "Julia for GIS",
+    "section": "Common interface packages:",
+    "text": "Common interface packages:\n\nGeoInterface.jl: common interface for geospatial objects\nDiskArrays.jl: lazy loading and out-of-core operations on large raster data\nCommonDataModel.jl: CF standards for loading NetCDF, Zarr and Grib files\nTables.jl: unites all tablular/dataframe data"
+  },
+  {
+    "objectID": "index.html#there-are-also-wrappers-for-common-gis-libraries",
+    "href": "index.html#there-are-also-wrappers-for-common-gis-libraries",
+    "title": "Julia for GIS",
+    "section": "There are also wrappers for common GIS libraries:",
+    "text": "There are also wrappers for common GIS libraries:\n\nLibGEOS.jl for geos\nGDAL.jl and ArchGDAL.jl for gdal\nProj.jl for proj projections\netc."
+  },
+  {
+    "objectID": "index.html#and-native-julia-io-packages",
+    "href": "index.html#and-native-julia-io-packages",
+    "title": "Julia for GIS",
+    "section": "And native julia IO packages",
+    "text": "And native julia IO packages\n\nShapefile.jl\nGeoJSON.jl\nGeoParquet.jl\netc…"
+  },
+  {
+    "objectID": "index.html#load-a-file",
+    "href": "index.html#load-a-file",
+    "title": "Julia for GIS",
+    "section": "Load a file",
+    "text": "Load a file\n\nusing Rasters, RasterDataSources, ArchGDAL, Dates\nfilename = getraster(WorldClim{Future{BioClim,CMIP6,MRI_ESM2_0,SSP126}}, 5; \n    date=Date(2050), res = \"10m\"\n)\nrast = Raster(filename; lazy=true)\n\n[ Info: Starting download for https://geodata.ucdavis.edu/cmip6/10m/MRI-ESM2-0/ssp126/wc2.1_10m_bioc_MRI-ESM2-0_ssp126_2041-2060.tif\n┌ Info: Downloading\n│   source = \"https://geodata.ucdavis.edu/cmip6/10m/MRI-ESM2-0/ssp126/wc2.1_10m_bioc_MRI-ESM2-0_ssp126_2041-2060.tif\"\n│   dest = \"./WorldClim/Future/BioClim/ssp126/MRI-ESM2-0/wc2.1_10m_bioc_MRI-ESM2-0_ssp126_2041-2060.tif\"\n│   progress = 0.7033\n│   time_taken = \"1.0 s\"\n│   time_remaining = \"0.42 s\"\n│   average_speed = \"23.268 MiB/s\"\n│   downloaded = \"23.361 MiB\"\n│   remaining = \"9.857 MiB\"\n└   total = \"33.218 MiB\"\n┌ Info: Downloading\n│   source = \"https://geodata.ucdavis.edu/cmip6/10m/MRI-ESM2-0/ssp126/wc2.1_10m_bioc_MRI-ESM2-0_ssp126_2041-2060.tif\"\n│   dest = \"./WorldClim/Future/BioClim/ssp126/MRI-ESM2-0/wc2.1_10m_bioc_MRI-ESM2-0_ssp126_2041-2060.tif\"\n│   progress = 1.0\n│   time_taken = \"1.3 s\"\n│   time_remaining = \"0.0 s\"\n│   average_speed = \"25.592 MiB/s\"\n│   downloaded = \"33.218 MiB\"\n│   remaining = \"0 bytes\"\n└   total = \"33.218 MiB\"\n\n\n╭────────────────────────────────╮\n│ 2160×1080×19 Raster{Float32,3} │\n├────────────────────────────────┴─────────────────────────────────────── dims ┐\n  ↓ X    Projected{Float64} LinRange{Float64}(-180.0, 179.83333333333331, 2160) ForwardOrdered Regular Intervals{Start},\n  → Y    Projected{Float64} LinRange{Float64}(89.83333333333333, -90.0, 1080) ReverseOrdered Regular Intervals{Start},\n  ↗ Band Categorical{String} [bio01, bio02, …, bio18, bio19] Unordered\n├──────────────────────────────────────────────────────────────────── metadata ┤\n  Metadata{Rasters.GDALsource} of Dict{String, Any} with 4 entries:\n  \"units\"    =&gt; \"\"\n  \"offset\"   =&gt; 0.0\n  \"filepath\" =&gt; \"./WorldClim/Future/BioClim/ssp126/MRI-ESM2-0/wc2.1_10m_bioc_MR…\n  \"scale\"    =&gt; 1.0\n├────────────────────────────────────────────────────────────────────── raster ┤\n  extent: Extent(X = (-180.0, 179.99999999999997), Y = (-90.0, 90.0), Band = (nothing, nothing))\n  missingval: NaN32\n  crs: GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]\n  filename: \n└──────────────────────────────────────────────────────────────────────────────┘"
+  },
+  {
+    "objectID": "index.html#makie.jl",
+    "href": "index.html#makie.jl",
+    "title": "Julia for GIS",
+    "section": "Makie.jl",
+    "text": "Makie.jl\n\nusing CairoMakie\nbioclim5 = Raster(WorldClim{BioClim}, 5)\nMakie.plot(bioclim5)\n\n[ Info: Starting download for https://geodata.ucdavis.edu/climate/worldclim/2_1/base/wc2.1_10m_bio.zip\n┌ Info: Downloading\n│   source = \"https://geodata.ucdavis.edu/climate/worldclim/2_1/base/wc2.1_10m_bio.zip\"\n│   dest = \"./WorldClim/BioClim/zips/wc2.1_10m_bio.zip\"\n│   progress = 1.0\n│   time_taken = \"0.83 s\"\n│   time_remaining = \"0.0 s\"\n│   average_speed = \"57.578 MiB/s\"\n│   downloaded = \"47.559 MiB\"\n│   remaining = \"0 bytes\"\n└   total = \"47.559 MiB\""
+  },
+  {
+    "objectID": "index.html#geomakie.jl",
+    "href": "index.html#geomakie.jl",
+    "title": "Julia for GIS",
+    "section": "GeoMakie.jl",
+    "text": "GeoMakie.jl\n\nusing GeoMakie, DataFrames\nfig = Figure();\nga = GeoAxis(fig[1, 1]; dest=\"+proj=ortho +lon_0=19 +lat_0=72\")\nMakie.heatmap!(ga, bioclim5; colormap=:magma)\nfig"
+  }
+]
